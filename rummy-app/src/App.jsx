@@ -159,7 +159,7 @@ export default function RummyApp() {
   const [editingCard, setEditingCard] = useState(null);
   // circleBets[i][j] and cardBets[i][j] — both symmetric, default 50
   const [circleBets, setCircleBets] = useState(()=>Array(5).fill(null).map(()=>Array(5).fill(50)));
-  const [cardBets,   setCardBets]   = useState(()=>Array(5).fill(null).map(()=>Array(5).fill(50)));
+  const [cardBets,   setCardBets]   = useState(()=>Array(5).fill(null).map(()=>Array(5).fill(150)));
   // Setup UI: which player is expanded, which rivals selected, which field editing
   const [expandedPlayer, setExpandedPlayer] = useState(null);
   const [selectedRivals, setSelectedRivals] = useState([]);
@@ -199,7 +199,7 @@ export default function RummyApp() {
   const [viewPlayer, setViewPlayer] = useState(null);
 
   // ── Manager auth ──────────────────────────────────────────────────────────
-  const MANAGER_PASSWORD = "rummy123"; // שנה לסיסמה שתרצה
+  const MANAGER_PASSWORD = "1234"; // שנה לסיסמה שתרצה
   const [isManager, setIsManager] = useState(false);
   const [showPwdModal, setShowPwdModal] = useState(false);
   const [pwdInput, setPwdInput] = useState("");
@@ -791,11 +791,11 @@ export default function RummyApp() {
                     <div style={{background:C.card,border:`1px solid ${C.accent}`,borderRadius:12,padding:14,marginTop:4}}>
                       {/* הצג סכומים קיימים */}
                       {Array.from({length:n},(_,j)=>j).filter(j=>j!==i).some(j=>
-                        circleBets[i][j]!==50||cardBets[i][j]!==50
+                        circleBets[i][j]!==50||cardBets[i][j]!==150
                       )&&(
                         <div style={{marginBottom:12}}>
                           <div style={{color:C.muted,fontSize:12,marginBottom:6}}>סכומים מוגדרים:</div>
-                          {Array.from({length:n},(_,j)=>j).filter(j=>j!==i&&(circleBets[i][j]!==50||cardBets[i][j]!==50)).map(j=>(
+                          {Array.from({length:n},(_,j)=>j).filter(j=>j!==i&&(circleBets[i][j]!==50||cardBets[i][j]!==150)).map(j=>(
                             <div key={j} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${C.border}`}}>
                               <span style={{color:C.text,fontSize:13}}>{names[j]||`שחקן ${j+1}`}</span>
                               <span style={{color:C.muted,fontSize:13}}>
