@@ -449,16 +449,14 @@ export default function RummyApp() {
     }
 
     // 6b. עיגול חובה
-    // under51 כולל המנצח (0) — קובע אם יש עיגול חובה
-    // היעד = הגבוה מבין הניקודים לפני הסיבוב של מי שמתחת ל-51 (לא המנצח)
     const allActivePlayers = Array.from({length:n},(_,i)=>i).filter(i=>!ne[i]);
     const under51 = allActivePlayers.filter(i=>ns[i]<51); // כולל המנצח
     const over51all = allActivePlayers.filter(i=>i!==W&&ns[i]>=51&&ns[i]<151);
     if(under51.length>=2 && over51all.length>0){
-      // היעד = הגבוה מבין הניקודים לפני הסיבוב של כל מי שמתחת ל-51 (לא המנצח)
-      const nonWinnerUnder51Before = allActivePlayers.filter(i=>i!==W&&scoresBefore[i]<51);
-      if(nonWinnerUnder51Before.length>0){
-        const hi51 = Math.max(...nonWinnerUnder51Before.map(j=>scoresBefore[j]));
+      // היעד = הגבוה מבין הניקודים הנוכחיים (אחרי הסיבוב) של כל מי שמתחת ל-51 ואינו המנצח
+      const nonWinnerUnder51 = allActivePlayers.filter(i=>i!==W&&ns[i]<51);
+      if(nonWinnerUnder51.length>0){
+        const hi51 = Math.max(...nonWinnerUnder51.map(j=>ns[j]));
         over51all.forEach(i=>{
           ns[i] = Math.max(hi51, 2);
           newPot+=50;
