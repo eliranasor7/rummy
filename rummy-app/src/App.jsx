@@ -250,6 +250,18 @@ export default function RummyApp() {
     if(s.egWinner!==undefined) setEgWinner(s.egWinner);
   }
 
+  // שמירה אוטומטית ל-Firebase כשה-state משתנה (רק מנהל)
+  useEffect(() => {
+    if(!isManagerRef.current || phase==="setup") return;
+    const snap = {
+      phase, playerCount, names, cards,
+      scores, eliminated, pot, personal, dealer, roundNum,
+      consec, firstWon, isDouble, roundHistory, dealerOrder, egWinner,
+      ts: Date.now(),
+    };
+    sharedSet(GAME_KEY, snap);
+  }, [phase, scores, eliminated, pot, roundNum, roundHistory, isDouble, dealer]);
+
   // Load history and game state from Firebase on mount
   useEffect(() => {
     setAllHistory(histLoad());
@@ -259,7 +271,7 @@ export default function RummyApp() {
         applySnapshot(snap);
       }
     });
-  }, []);
+  }, []); // eslint-disable-line
 
   // Manager saves state explicitly after each action (not via useEffect)
   async function syncState(overrides={}) {
