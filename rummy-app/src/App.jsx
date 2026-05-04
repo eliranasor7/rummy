@@ -198,8 +198,12 @@ export default function RummyApp() {
   // ── Detail view ──
   const [viewPlayer, setViewPlayer] = useState(null);
 
-  // ── Shared state sync ──────────────────────────────────────────────────────
-  const [isManager, setIsManager] = useState(true);
+  // ── Manager auth ──────────────────────────────────────────────────────────
+  const MANAGER_PASSWORD = "rummy123"; // שנה לסיסמה שתרצה
+  const [isManager, setIsManager] = useState(false);
+  const [showPwdModal, setShowPwdModal] = useState(false);
+  const [pwdInput, setPwdInput] = useState("");
+  const [pwdError, setPwdError] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [allHistory, setAllHistory] = useState([]); // cross-game history
   const [historyView, setHistoryView] = useState(false);
@@ -258,16 +262,18 @@ export default function RummyApp() {
     await sharedSet(GAME_KEY, snap);
   }
 
-  // Non-manager polls for updates
+  // Non-manager מקבל עדכונים בזמן אמת מ-Firebase
   useEffect(() => {
     if(isManager) return;
-    const id = setInterval(async () => {
-      const snap = await sharedGet(GAME_KEY);
-      if(snap) applySnapshot(snap);
-      const hist = await sharedGet(HIST_KEY);
-      if(hist) setAllHistory(hist);
-    }, POLL_MS);
-    return () => clearInterval(id);
+    const gameRef = ref(db, GAME_KEY);
+    const unsub = onValue(gameRef, (snap) => {
+      if(snap.exists()) applySnapshot(snap.val());
+    });
+    const histRef = ref(db, HIST_KEY);
+    const unsubHist = onValue(histRef, (snap) => {
+      if(snap.exists()) setAllHistory(snap.val());
+    });
+    return () => { unsub(); unsubHist(); };
   }, [isManager]);
 
   const n = playerCount;
@@ -701,7 +707,7 @@ export default function RummyApp() {
           <div style={{fontSize:48}}>🃏</div>
           <h1 style={{color:C.text,fontSize:24,fontWeight:900,margin:"6px 0 0"}}>רמי</h1>
           <div style={{display:"flex",gap:8,justifyContent:"center",marginTop:10}}>
-            <button onClick={()=>setIsManager(m=>!m)} style={{
+            <button onClick={()=>isManager?setIsManager(false):setShowPwdModal(true)} style={{
               background:isManager?"rgba(34,197,94,0.15)":C.card,
               border:`1px solid ${isManager?C.green:C.border}`,
               borderRadius:10,padding:"6px 14px",
@@ -1101,7 +1107,7 @@ export default function RummyApp() {
           <div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <h1 style={{color:C.text,fontSize:19,fontWeight:900,margin:0}}>🃏 רמי {isDouble&&<span style={{color:C.amber,fontSize:14}}>×2</span>}</h1>
-              <button onClick={()=>setIsManager(m=>!m)} style={{
+              <button onClick={()=>isManager?setIsManager(false):setShowPwdModal(true)} style={{
                 background:isManager?"rgba(34,197,94,0.15)":C.card,
                 border:`1px solid ${isManager?C.green:C.border}`,
                 borderRadius:8,padding:"3px 10px",
@@ -1116,6 +1122,48 @@ export default function RummyApp() {
               borderRadius:13,padding:"10px 12px",
               color:C.muted,fontSize:13,cursor:"pointer",
             }}>📊</button>
+            {isManager&&roundHistory.filter(r=>!r.parish).length>0&&(
+              <button onClick={()=>{
+                if(!window.confirm("לערוך את הסיבוב האחרון?")) return;
+                // מחזיר את המצב לפני הסיבוב האחרון
+                const lastReal = [...roundHistory].reverse().find(r=>!r.parish);
+                if(!lastReal) return;
+                // שחזור ניקוד לפני הסיבוב האחרון
+                const prevScores = lastReal.cols.map(col=>col.score-(col.added||0));
+                setScores(prevScores);
+                setRoundHistory(prev=>{
+                  const idx = prev.lastIndexOf(lastReal);
+                  return prev.slice(0,idx);
+                });
+                setRoundNum(r=>r-1);
+                setPot(prev=>lastReal.pot-(lastReal.cols.reduce((s,c)=>(c.circles||0)*50+s,0)));
+                setModal(null);
+              }} style={{
+                background:C.card,border:`1px solid ${C.border}`,
+                borderRadius:13,padding:"10px 12px",
+                color:C.amber,fontSize:13,cursor:"pointer",fontWeight:700,
+              }}>✏️</button>
+            )}
+            {isManager&&<button onClick={()=>{
+              if(!window.confirm("להתחיל משחק חדש? כל הנתונים יימחקו.")) return;
+              setPhase("setup");
+              setScores(Array(5).fill(0));
+              setEliminated(Array(5).fill(false));
+              setPot(0);
+              setPersonal(Array(5).fill(null).map(blankPersonal));
+              setRoundHistory([]);
+              setRoundNum(1);
+              setIsDouble(false);
+              setConsec(Array(5).fill(0));
+              setFirstWon(false);
+              setDealerOrder([]);
+              setModal(null);
+              sharedSet(GAME_KEY, {phase:"setup",ts:Date.now()});
+            }} style={{
+              background:C.card,border:`1px solid ${C.border}`,
+              borderRadius:13,padding:"10px 12px",
+              color:C.red,fontSize:13,cursor:"pointer",fontWeight:700,
+            }}>🔄</button>}
             {isManager&&<button onClick={doParish} style={{
               background:C.card,border:`1px solid ${C.border}`,
               borderRadius:13,padding:"10px 14px",
@@ -1128,6 +1176,34 @@ export default function RummyApp() {
             }}>+ סיבוב</button>}
           </div>
         </div>
+
+        {/* מודל סיסמת מנהל */}
+        {showPwdModal&&(
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>{setShowPwdModal(false);setPwdInput("");setPwdError(false);}}>
+            <div style={{background:C.surface,borderRadius:20,padding:28,width:280,direction:"rtl"}} onClick={e=>e.stopPropagation()}>
+              <h3 style={{color:C.text,margin:"0 0 16px",fontSize:18}}>🔐 כניסת מנהל</h3>
+              <input
+                type="password"
+                placeholder="סיסמה..."
+                value={pwdInput}
+                onChange={e=>setPwdInput(e.target.value)}
+                onKeyDown={e=>{
+                  if(e.key==="Enter"){
+                    if(pwdInput===MANAGER_PASSWORD){setIsManager(true);setShowPwdModal(false);setPwdInput("");setPwdError(false);}
+                    else setPwdError(true);
+                  }
+                }}
+                style={{width:"100%",padding:"10px 14px",borderRadius:10,border:`1px solid ${pwdError?C.red:C.border}`,background:C.card,color:C.text,fontSize:16,marginBottom:8,boxSizing:"border-box"}}
+                autoFocus
+              />
+              {pwdError&&<div style={{color:C.red,fontSize:13,marginBottom:8}}>סיסמה שגויה</div>}
+              <button onClick={()=>{
+                if(pwdInput===MANAGER_PASSWORD){setIsManager(true);setShowPwdModal(false);setPwdInput("");setPwdError(false);}
+                else setPwdError(true);
+              }} style={{width:"100%",background:C.green,border:"none",borderRadius:10,padding:12,color:"#fff",fontWeight:700,fontSize:16,cursor:"pointer"}}>כניסה</button>
+            </div>
+          </div>
+        )}
 
         {/* Current scores — tap for detail */}
         <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:18,overflow:"hidden",marginBottom:14,boxShadow:"0 6px 24px rgba(0,0,0,0.4)"}}>
