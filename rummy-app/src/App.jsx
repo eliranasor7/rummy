@@ -199,11 +199,20 @@ export default function RummyApp() {
   const [viewPlayer, setViewPlayer] = useState(null);
 
   // ── Manager auth ──────────────────────────────────────────────────────────
-  const MANAGER_PASSWORD = "1234"; // שנה לסיסמה שתרצה
-  const [isManager, setIsManager] = useState(false);
+  const MANAGER_PASSWORD = "1234";
+  const [isManager, setIsManager] = useState(()=>sessionStorage.getItem("rummy-manager")==="1");
   const [showPwdModal, setShowPwdModal] = useState(false);
   const [pwdInput, setPwdInput] = useState("");
   const [pwdError, setPwdError] = useState(false);
+
+  function becomeManager() {
+    setIsManager(true);
+    sessionStorage.setItem("rummy-manager","1");
+  }
+  function leaveManager() {
+    setIsManager(false);
+    sessionStorage.removeItem("rummy-manager");
+  }
   const [syncing, setSyncing] = useState(false);
   const [allHistory, setAllHistory] = useState([]); // cross-game history
   const [historyView, setHistoryView] = useState(false);
@@ -262,19 +271,24 @@ export default function RummyApp() {
     await sharedSet(GAME_KEY, snap);
   }
 
-  // Non-manager מקבל עדכונים בזמן אמת מ-Firebase
+  // כולם מקשיבים ל-Firebase בזמן אמת
   useEffect(() => {
-    if(isManager) return;
     const gameRef = ref(db, GAME_KEY);
     const unsub = onValue(gameRef, (snap) => {
-      if(snap.exists()) applySnapshot(snap.val());
+      if(snap.exists()) {
+        const data = snap.val();
+        // אם אני מנהל — לא מקבל עדכונים (אני הכותב)
+        if(!sessionStorage.getItem("rummy-manager")) {
+          applySnapshot(data);
+        }
+      }
     });
     const histRef = ref(db, HIST_KEY);
     const unsubHist = onValue(histRef, (snap) => {
       if(snap.exists()) setAllHistory(snap.val());
     });
     return () => { unsub(); unsubHist(); };
-  }, [isManager]);
+  }, []);
 
   const n = playerCount;
   const pNames = names.slice(0,n);
@@ -707,7 +721,7 @@ export default function RummyApp() {
           <div style={{fontSize:48}}>🃏</div>
           <h1 style={{color:C.text,fontSize:24,fontWeight:900,margin:"6px 0 0"}}>רמי</h1>
           <div style={{display:"flex",gap:8,justifyContent:"center",marginTop:10}}>
-            <button onClick={()=>isManager?setIsManager(false):setShowPwdModal(true)} style={{
+            <button onClick={()=>isManager?leaveManager():setShowPwdModal(true)} style={{
               background:isManager?"rgba(34,197,94,0.15)":C.card,
               border:`1px solid ${isManager?C.green:C.border}`,
               borderRadius:10,padding:"6px 14px",
@@ -1107,7 +1121,7 @@ export default function RummyApp() {
           <div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <h1 style={{color:C.text,fontSize:19,fontWeight:900,margin:0}}>🃏 רמי {isDouble&&<span style={{color:C.amber,fontSize:14}}>×2</span>}</h1>
-              <button onClick={()=>isManager?setIsManager(false):setShowPwdModal(true)} style={{
+              <button onClick={()=>isManager?leaveManager():setShowPwdModal(true)} style={{
                 background:isManager?"rgba(34,197,94,0.15)":C.card,
                 border:`1px solid ${isManager?C.green:C.border}`,
                 borderRadius:8,padding:"3px 10px",
