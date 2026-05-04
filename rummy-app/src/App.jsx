@@ -432,24 +432,25 @@ export default function RummyApp() {
     }
 
     // 6b. עיגול חובה
-    // under51 כולל המנצח (0) — הוא קובע אם יש עיגול חובה
-    // מי שעוגל: כולל מי שעיגל ב-6a ועדיין על 51+!
+    // under51 כולל המנצח (0) — קובע אם יש עיגול חובה
+    // היעד = הגבוה מבין הניקודים לפני הסיבוב של מי שמתחת ל-51 (לא המנצח)
     const allActivePlayers = Array.from({length:n},(_,i)=>i).filter(i=>!ne[i]);
-    const under51 = allActivePlayers.filter(i=>ns[i]<51); // כולל המנצח!
+    const under51 = allActivePlayers.filter(i=>ns[i]<51); // כולל המנצח
     const over51all = allActivePlayers.filter(i=>i!==W&&ns[i]>=51&&ns[i]<151);
     if(under51.length>=2 && over51all.length>0){
-      const under51others = under51.filter(i=>i!==W);
-      const hi51 = under51others.length>0
-        ? Math.max(...under51others.map(j=>ns[j]))
-        : 2;
-      over51all.forEach(i=>{
-        ns[i] = Math.max(hi51, 2);
-        newPot+=50;
-        circleCount[i]++;
-        didCircle[i]=true;
-        np[i].circles-=50;
-        np[i].roundLog.push({round:roundNum,label:`עיגול חובה ל-${hi51} → קופה`,val:-50});
-      });
+      // היעד = הגבוה מבין הניקודים לפני הסיבוב של כל מי שמתחת ל-51 (לא המנצח)
+      const nonWinnerUnder51Before = allActivePlayers.filter(i=>i!==W&&scoresBefore[i]<51);
+      if(nonWinnerUnder51Before.length>0){
+        const hi51 = Math.max(...nonWinnerUnder51Before.map(j=>scoresBefore[j]));
+        over51all.forEach(i=>{
+          ns[i] = Math.max(hi51, 2);
+          newPot+=50;
+          circleCount[i]++;
+          didCircle[i]=true;
+          np[i].circles-=50;
+          np[i].roundLog.push({round:roundNum,label:`עיגול חובה ל-${hi51} → קופה`,val:-50});
+        });
+      }
     }
 
     // 7. Build round history row
