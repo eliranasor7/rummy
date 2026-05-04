@@ -393,9 +393,9 @@ export default function RummyApp() {
         let lbl="";
         // רק שחקנים שיש להם קלף מוגדר משתתפים
         still.filter(i=>i!==recv && pCards[i]!=null).forEach(i=>{
-          let amt;
+          let amt, lbl;
           if(isExact){
-            amt = cardBets[Math.min(i,recv)][Math.max(i,recv)]||50;
+            amt = cardBets[Math.min(i,recv)][Math.max(i,recv)]||150;
             lbl="בינגו! קלף מדויק";
           } else if(sameColor){
             amt = 100;
@@ -1116,18 +1116,37 @@ export default function RummyApp() {
             {isManager&&roundHistory.filter(r=>!r.parish).length>0&&(
               <button onClick={()=>{
                 if(!window.confirm("לערוך את הסיבוב האחרון?")) return;
-                // מחזיר את המצב לפני הסיבוב האחרון
                 const lastReal = [...roundHistory].reverse().find(r=>!r.parish);
                 if(!lastReal) return;
-                // שחזור ניקוד לפני הסיבוב האחרון
-                const prevScores = lastReal.cols.map(col=>col.score-(col.added||0));
+                // שחזור ניקוד
+                const prevScores = lastReal.cols.map(col=>{
+                  if(col.won) return 0; // המנצח היה על 0
+                  if(col.added==null) return col.score;
+                  // מחזירים את הניקוד לפני הסיבוב
+                  // אם היה עיגול — הניקוד לפני = col.score + col.added (לפני העיגול)
+                  return col.score - (col.added||0) + (col.circles||0)*50;
+                });
+                // שחזור personal — מחיקת כל הרשומות של הסיבוב האחרון
+                const lastRound = lastReal.round;
+                const newPersonal = personal.map(p=>({
+                  ...p,
+                  joker: p.joker - (p.roundLog.filter(e=>e.round===lastRound).reduce((s,e)=>e.label.includes("ג'וקר")?s+e.val:s,0)),
+                  card: p.card - (p.roundLog.filter(e=>e.round===lastRound).reduce((s,e)=>e.label.includes("בינגו")||e.label.includes("צבע")?s+e.val:s,0)),
+                  circles: p.circles - (p.roundLog.filter(e=>e.round===lastRound).reduce((s,e)=>e.label.includes("עיגול")?s+e.val:s,0)),
+                  consec: p.consec - (p.roundLog.filter(e=>e.round===lastRound).reduce((s,e)=>e.label.includes("רצופ")?s+e.val:s,0)),
+                  firstWin: p.firstWin - (p.roundLog.filter(e=>e.round===lastRound).reduce((s,e)=>e.label.includes("ניצחון ראשון")?s+e.val:s,0)),
+                  roundLog: p.roundLog.filter(e=>e.round!==lastRound),
+                }));
+                // שחזור קופה
+                const circlesInRound = lastReal.cols.reduce((s,c)=>(c.circles||0)*50+s,0);
                 setScores(prevScores);
+                setPersonal(newPersonal);
+                setPot(prev=>prev-circlesInRound);
                 setRoundHistory(prev=>{
-                  const idx = prev.lastIndexOf(lastReal);
+                  const idx = prev.map(r=>r.round).lastIndexOf(lastReal.round);
                   return prev.slice(0,idx);
                 });
                 setRoundNum(r=>r-1);
-                setPot(prev=>lastReal.pot-(lastReal.cols.reduce((s,c)=>(c.circles||0)*50+s,0)));
                 setModal(null);
               }} style={{
                 background:C.card,border:`1px solid ${C.border}`,
@@ -1454,17 +1473,18 @@ export default function RummyApp() {
                           const recv=cardFell.receiver;
                           const myCard=recv!=null?pCards[recv]:null;
                           const redSuits=["♦","♥"], blackSuits=["♠","♣"];
-                          let bonus="", bonusColor=C.muted;
+                          let bonus="50₪", bonusColor=C.muted;
                           if(myCard){
-                            if(s===myCard.suit){ bonus="בינגו!"; bonusColor=C.amber; }
-                            else if(
+                            if(s===myCard.suit){
+                              bonus="בינגו! 150₪"; bonusColor=C.amber;
+                            } else if(
                               (redSuits.includes(s)&&redSuits.includes(myCard.suit))||
                               (blackSuits.includes(s)&&blackSuits.includes(myCard.suit))
-                            ){ bonus="100₪"; bonusColor=C.green; }
-                            else { bonus="50₪"; bonusColor=C.muted; }
-                          } else {
-                            // אין קלף מוגדר — מציג לפי צבע בלבד
-                            bonus="50₪"; bonusColor=C.muted;
+                            ){
+                              bonus="100₪"; bonusColor=C.green;
+                            } else {
+                              bonus="50₪"; bonusColor=C.muted;
+                            }
                           }
                           return (
                             <button key={s} onClick={()=>setCardFell(c=>({...c,suit:s}))} style={{
