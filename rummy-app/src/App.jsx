@@ -1042,8 +1042,13 @@ export default function RummyApp() {
                 </div>
                 <div style={{textAlign:"center",color:C.muted,fontSize:13,fontWeight:600,paddingTop:2}}>{scores[i]}</div>
                 <div style={{textAlign:"center",paddingTop:2}}>
-                  {totalCircles[i]>0
-                    ? <span style={{color:C.red,fontSize:12,fontWeight:700}}>🔴{totalCircles[i]}<br/><Money v={p.circles} size={11}/></span>
+                  {totalCircles[i]>0 && p.circles<0
+                    ? <div style={{lineHeight:1.3}}>
+                        <div style={{color:C.red,fontSize:12,fontWeight:700}}>🔴×{totalCircles[i]}</div>
+                        <div style={{color:C.red,fontSize:11,fontWeight:600}}>{p.circles}₪</div>
+                      </div>
+                    : totalCircles[i]>0 && i===egWinner
+                    ? <span style={{color:C.muted,fontSize:11}}>🔴×{totalCircles[i]}<br/>בוטל</span>
                     : <span style={{color:C.muted,fontSize:12}}>—</span>}
                 </div>
                 <div style={{textAlign:"center",paddingTop:2}}><Money v={p.joker} size={12}/></div>
