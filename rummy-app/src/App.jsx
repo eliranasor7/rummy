@@ -466,6 +466,7 @@ export default function RummyApp() {
       winner: W,
       pot: newPot,
       isDouble: mult===2,
+      scoresBefore: [...scoresBefore], // שמירת ניקוד לפני הסיבוב לצורך undo
       cols: Array.from({length:n},(_,i)=>{
         if(ne[i]&&!didCircle[i]&&scoresBefore[i]===scores[i]&&i!==W) return {score:ns[i],added:null,circles:0};
         if(i===W) return {score:ns[i],added:0,won:true,circles:circleCount[i]||0};
@@ -1118,12 +1119,10 @@ export default function RummyApp() {
                 if(!window.confirm("לערוך את הסיבוב האחרון?")) return;
                 const lastReal = [...roundHistory].reverse().find(r=>!r.parish);
                 if(!lastReal) return;
-                // שחזור ניקוד
-                const prevScores = lastReal.cols.map(col=>{
-                  if(col.won) return 0; // המנצח היה על 0
+                // שחזור ניקוד מדויק
+                const prevScores = lastReal.scoresBefore || lastReal.cols.map(col=>{
+                  if(col.won) return 0;
                   if(col.added==null) return col.score;
-                  // מחזירים את הניקוד לפני הסיבוב
-                  // אם היה עיגול — הניקוד לפני = col.score + col.added (לפני העיגול)
                   return col.score - (col.added||0) + (col.circles||0)*50;
                 });
                 // שחזור personal — מחיקת כל הרשומות של הסיבוב האחרון
