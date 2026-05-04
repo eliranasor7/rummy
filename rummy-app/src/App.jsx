@@ -235,9 +235,15 @@ export default function RummyApp() {
     if(s.egWinner!==undefined) setEgWinner(s.egWinner);
   }
 
-  // Load history from localStorage on mount (persistent)
+  // Load history and game state from Firebase on mount
   useEffect(() => {
     setAllHistory(histLoad());
+    // טען state משמור אם קיים
+    sharedGet(GAME_KEY).then(snap => {
+      if(snap && snap.phase && snap.phase !== 'setup') {
+        applySnapshot(snap);
+      }
+    });
   }, []);
 
   // Manager saves state explicitly after each action (not via useEffect)
