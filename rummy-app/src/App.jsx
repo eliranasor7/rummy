@@ -198,36 +198,14 @@ export default function RummyApp() {
   // ── Detail view ──
   const [viewPlayer, setViewPlayer] = useState(null);
 
-  // ── Manager auth ──────────────────────────────────────────────────────────
-  const MANAGER_PASSWORD = "1234";
-  const [isManager, setIsManager] = useState(()=>sessionStorage.getItem("rummy-manager")==="1");
-  const [showPwdModal, setShowPwdModal] = useState(false);
-  const [pwdInput, setPwdInput] = useState("");
-  const [pwdError, setPwdError] = useState(false);
-
-  function becomeManager() {
-    setIsManager(true);
-    sessionStorage.setItem("rummy-manager","1");
-    isManagerRef.current = true;
-  }
-  function leaveManager() {
-    setIsManager(false);
-    sessionStorage.removeItem("rummy-manager");
-    isManagerRef.current = false;
-  }
+  // ── כולם יכולים לערוך — ללא סיסמה ──────────────────────────────────────
+  const [isManager] = useState(true); // תמיד מנהל
+  const [showPwdModal] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [allHistory, setAllHistory] = useState([]); // cross-game history
+  const [allHistory, setAllHistory] = useState([]);
   const [historyView, setHistoryView] = useState(false);
   const lastSaveRef = useRef(0);
-
-  // Build a snapshot of current game state
-  const buildSnapshot = useCallback(() => ({
-    phase, playerCount, names, cards: cards.map(c=>c),
-    scores, eliminated, pot, personal, dealer, roundNum,
-    consec, firstWon, isDouble, roundHistory, dealerOrder,
-    egWinner, ts: Date.now(),
-  }), [phase, playerCount, names, cards, scores, eliminated, pot, personal,
-      dealer, roundNum, consec, firstWon, isDouble, roundHistory, dealerOrder, egWinner]);
+  const lastTsRef = useRef(0); // timestamp של עדכון אחרון שנשמר
 
   // Apply a snapshot from storage
   function applySnapshot(s) {
@@ -250,50 +228,25 @@ export default function RummyApp() {
     if(s.egWinner!==undefined) setEgWinner(s.egWinner);
   }
 
-  // שמירה אוטומטית ל-Firebase כשה-state משתנה (רק מנהל)
-  useEffect(() => {
-    if(!isManagerRef.current || phase==="setup") return;
-    const snap = {
-      phase, playerCount, names, cards,
-      scores, eliminated, pot, personal, dealer, roundNum,
-      consec, firstWon, isDouble, roundHistory, dealerOrder, egWinner,
-      ts: Date.now(),
-    };
-    sharedSet(GAME_KEY, snap);
-  }, [phase, scores, eliminated, pot, roundNum, roundHistory, isDouble, dealer]);
-
-  // Load history and game state from Firebase on mount
+  // טעינה ראשונית + האזנה בזמן אמת
   useEffect(() => {
     setAllHistory(histLoad());
-    // טען state פעם אחת בכניסה — לכולם כולל המנהל
+    // טען פעם אחת
     sharedGet(GAME_KEY).then(snap => {
       if(snap && snap.phase && snap.phase !== 'setup') {
+        lastTsRef.current = snap.ts || 0;
         applySnapshot(snap);
       }
     });
-  }, []); // eslint-disable-line
-
-  // Manager saves state explicitly after each action (not via useEffect)
-  async function syncState(overrides={}) {
-    if(!isManager) return;
-    const snap = {
-      phase, playerCount, names, cards,
-      scores, eliminated, pot, personal, dealer, roundNum,
-      consec, firstWon, isDouble, roundHistory, dealerOrder, egWinner,
-      ...overrides, ts: Date.now(),
-    };
-    await sharedSet(GAME_KEY, snap);
-  }
-
-  // כולם מקשיבים ל-Firebase בזמן אמת — רק צופים מקבלים עדכונים
-  const isManagerRef = useRef(sessionStorage.getItem("rummy-manager")==="1");
-  
-  useEffect(() => {
+    // האזן לשינויים — עדכן רק אם ה-timestamp חדש ממה שאנחנו שמרנו
     const gameRef = ref(db, GAME_KEY);
     const unsub = onValue(gameRef, (snap) => {
-      // רק צופים מקבלים עדכון — מנהל לא מתעדכן מ-Firebase
-      if(!isManagerRef.current && snap.exists()) {
-        applySnapshot(snap.val());
+      if(snap.exists()) {
+        const data = snap.val();
+        if(data.ts && data.ts > lastTsRef.current + 500) {
+          lastTsRef.current = data.ts;
+          applySnapshot(data);
+        }
       }
     });
     const histRef = ref(db, HIST_KEY);
@@ -559,6 +512,17 @@ export default function RummyApp() {
         setModal("endgame");
       },300);
     }
+
+    // שמירה ל-Firebase
+    const ts = Date.now();
+    lastTsRef.current = ts;
+    sharedSet(GAME_KEY, {
+      phase, playerCount, names, cards, egWinner,
+      scores:ns, eliminated:ne, pot:newPot, personal:np, dealer:d,
+      roundNum:roundNum+1, consec:nc, firstWon:true,
+      isDouble:false, roundHistory:[...roundHistory,histRow], dealerOrder,
+      ts,
+    });
   }
 
   function finishGame() {
