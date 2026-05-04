@@ -208,10 +208,12 @@ export default function RummyApp() {
   function becomeManager() {
     setIsManager(true);
     sessionStorage.setItem("rummy-manager","1");
+    isManagerRef.current = true;
   }
   function leaveManager() {
     setIsManager(false);
     sessionStorage.removeItem("rummy-manager");
+    isManagerRef.current = false;
   }
   const [syncing, setSyncing] = useState(false);
   const [allHistory, setAllHistory] = useState([]); // cross-game history
@@ -251,7 +253,7 @@ export default function RummyApp() {
   // Load history and game state from Firebase on mount
   useEffect(() => {
     setAllHistory(histLoad());
-    // טען state משמור אם קיים
+    // טען state פעם אחת בכניסה — לכולם כולל המנהל
     sharedGet(GAME_KEY).then(snap => {
       if(snap && snap.phase && snap.phase !== 'setup') {
         applySnapshot(snap);
@@ -271,16 +273,15 @@ export default function RummyApp() {
     await sharedSet(GAME_KEY, snap);
   }
 
-  // כולם מקשיבים ל-Firebase בזמן אמת
+  // כולם מקשיבים ל-Firebase בזמן אמת — רק צופים מקבלים עדכונים
+  const isManagerRef = useRef(sessionStorage.getItem("rummy-manager")==="1");
+  
   useEffect(() => {
     const gameRef = ref(db, GAME_KEY);
     const unsub = onValue(gameRef, (snap) => {
-      if(snap.exists()) {
-        const data = snap.val();
-        // אם אני מנהל — לא מקבל עדכונים (אני הכותב)
-        if(!sessionStorage.getItem("rummy-manager")) {
-          applySnapshot(data);
-        }
+      // רק צופים מקבלים עדכון — מנהל לא מתעדכן מ-Firebase
+      if(!isManagerRef.current && snap.exists()) {
+        applySnapshot(snap.val());
       }
     });
     const histRef = ref(db, HIST_KEY);
