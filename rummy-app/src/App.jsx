@@ -1,24 +1,41 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, set, get, onValue } from "firebase/database";
+
+// ─── Firebase ────────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyDUnkaYOCDZWICH2HYDqqfI3L7WcyQg-v8",
+  authDomain: "rummy-2cc58.firebaseapp.com",
+  databaseURL: "https://rummy-2cc58-default-rtdb.firebaseio.com",
+  projectId: "rummy-2cc58",
+  storageBucket: "rummy-2cc58.firebasestorage.app",
+  messagingSenderId: "502623408622",
+  appId: "1:502623408622:web:0d540c326188c0ec7cfeff",
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getDatabase(firebaseApp);
 
 // ─── Storage ────────────────────────────────────────────────────────────────
-const GAME_KEY = "rummy-game-v1";
-const HIST_KEY = "rummy-history-v1";
+const GAME_KEY = "game";
+const HIST_KEY = "history";
 const POLL_MS  = 2500;
 
-// היסטוריה — נשמרת ב-localStorage (קבועה לתמיד)
 function histLoad() {
-  try { const v=localStorage.getItem(HIST_KEY); return v?JSON.parse(v):[]; } catch { return []; }
+  try { const v=localStorage.getItem("rummy-hist"); return v?JSON.parse(v):[]; } catch { return []; }
 }
 function histSave(data) {
-  try { localStorage.setItem(HIST_KEY, JSON.stringify(data)); } catch {}
+  try { localStorage.setItem("rummy-hist", JSON.stringify(data)); } catch {}
+  set(ref(db, HIST_KEY), data).catch(()=>{});
 }
 
-// מצב משחק — נשמר ב-shared storage (סינכרון בין מכשירים)
 async function sharedGet(key) {
-  try { const r=await window.storage.get(key,true); return r?JSON.parse(r.value):null; } catch { return null; }
+  try {
+    const snap = await get(ref(db, key));
+    return snap.exists() ? snap.val() : null;
+  } catch { return null; }
 }
-async function sharedSet(key,val) {
-  try { await window.storage.set(key,JSON.stringify(val),true); } catch {}
+async function sharedSet(key, val) {
+  try { await set(ref(db, key), val); } catch {}
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
