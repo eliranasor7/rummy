@@ -947,6 +947,7 @@ export default function RummyApp() {
               {label:"קלף",val:p.card},
               {label:"רצף ניצחונות",val:p.consec},
               {label:"ניצחון ראשון",val:p.firstWin},
+              {label:"עיגולים",val:p.circles},
               {label:"עלות / קופה",val:p.gameBet},
             ].map((x,xi)=>(
               <div key={xi} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${C.card}`}}>
