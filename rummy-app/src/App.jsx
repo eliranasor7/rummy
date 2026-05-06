@@ -441,15 +441,13 @@ export default function RummyApp() {
     }
 
     // 6b. עיגול חובה
-    // המנצח נספר לפי הניקוד שלו לפני הסיבוב (לא 0)
-    // כי ה-0 זה רק עבורו, אבל לצורך העיגול הוא עדיין "על" הניקוד הקודם שלו
     const allActivePlayers = Array.from({length:n},(_,i)=>i).filter(i=>!ne[i]);
-    // חישוב ניקוד לצורך עיגול — המנצח על ניקודו לפני הסיבוב
     const scoreForCircle = (i) => i===W ? scoresBefore[W] : ns[i];
     const under51forCircle = allActivePlayers.filter(i=>scoreForCircle(i)<51);
     const over51all = allActivePlayers.filter(i=>i!==W&&ns[i]>=51&&ns[i]<151);
     if(under51forCircle.length>=2 && over51all.length>0){
-      const hi51 = Math.max(...under51forCircle.map(i=>scoreForCircle(i)));
+      // היעד = הגבוה מבין כל השחקנים הפעילים (לא המנצח)
+      const hi51 = Math.max(...allActivePlayers.filter(i=>i!==W).map(i=>ns[i]));
       over51all.forEach(i=>{
         ns[i] = hi51;
         newPot+=50;
